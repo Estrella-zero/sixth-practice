@@ -42,4 +42,62 @@ const renderCards = (data) => {
   });
 };
 
+
+let barChart = null;
+
+const renderBarChart = (data) => {
+  if (barChart === null) {
+    barChart = echarts.init(document.querySelector('#bar-chart'));
+  }
+  barChart.setOption({
+    title: { text: '各自习室座位与在座人数', left: 'center' },
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0 },
+    grid : { bottom: 90 },
+    xAxis: { 
+      type:'category',
+      data:data.rooms.map(r =>r.name),
+      axisLabel : { rotate:40, fontSize:10 }
+    },
+    yAxis: { name: '座' },
+    series: [{
+      name: '总座数',
+      type: 'bar',
+      data:data.rooms.map(r=>r.seats)
+    },
+    {
+      name :'已坐座位数',
+      type : 'bar' , 
+      data : data.rooms.map( r =>r.occupied) 
+    }]
+  });
+};
+
+let lineChart = null;
+const renderLineChart = (data)=> {
+  if (lineChart !== null ) {
+    lineChart. destroy ();
+  } 
+const labels = data.rooms.map( r => r. name );
+  lineChart = new Chart( document.querySelector( '#line-chart' ), { 
+    type :'line',
+    data:{
+      labels:labels,
+      datasets : [
+        { label : '使用率%' ,
+          data : data. rooms . map ( r => Math . round (r. occupied / r. seats * 100 )), 
+          borderWidth : 1 },
+        { label : '空余座位' , 
+          data : data. rooms . map ( r => r. seats - r. occupied ), 
+          borderWidth : 1 }
+      ]
+    }, 
+    options:{ 
+      responsive:true , 
+      maintainAspectRatio:false , 
+      plugins:{ 
+        title:{ display:true,text:'各自习室使用率与空余座位'} }
+    }
+  });
+};
 loadData();
