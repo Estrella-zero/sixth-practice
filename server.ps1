@@ -1,5 +1,4 @@
-# server.ps1 - Static file server (Windows built-in PowerShell, no install needed)
-$root = $PSScriptRoot
+$root = Split-Path $PSScriptRoot -Parent
 $port = 8000
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
@@ -13,7 +12,8 @@ try {
 }
 
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  Dashboard local server (PowerShell)" -ForegroundColor Cyan
+Write-Host "  Multi-project local server (PowerShell)" -ForegroundColor Cyan
+Write-Host "  Root: $root" -ForegroundColor Cyan
 Write-Host "  Open: http://localhost:$port" -ForegroundColor Cyan
 Write-Host "  Close this window to stop the server" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
@@ -29,15 +29,56 @@ $types = @{
     '.ico'  = 'image/x-icon'
 }
 
+# Build a simple project list page from subfolders that contain index.html
+function Get-IndexPage {
+    $items = Get-ChildItem -Path $root -Directory | Sort-Object Name | ForEach-Object {
+        $entry = Join-Path $_.FullName 'index.html'
+        if (Test-Path $entry -PathType Leaf) {
+            "<li><a href='/$($_.Name)/'>$($_.Name)</a></li>"
+        }
+    }
+    $list = ($items -join "`n")
+    $html = "<!DOCTYPE html><html lang='zh-CN'><head><meta charset='UTF-8'><title>Projects</title>" +
+            "<style>body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 16px}" +
+            "li{margin:10px 0;font-size:18px}a{text-decoration:none;color:#1565c0}</style></head>" +
+            "<body><h1>Local projects</h1><ul>$list</ul></body></html>"
+    return [System.Text.Encoding]::UTF8.GetBytes($html)
+}
+
 while ($listener.IsListening) {
     try {
         $ctx = $listener.GetContext()
-        $urlPath = $ctx.Request.Url.AbsolutePath
-        if ($urlPath -eq '/') { $urlPath = '/index.html' }
+        $urlPath = [System.Uri]::UnescapeDataString($ctx.Request.Url.AbsolutePath)
         $relPath = $urlPath.TrimStart('/') -replace '/', '\'
         $filePath = Join-Path $root $relPath
 
+        # Root: show project list
+        if ($urlPath -eq '/' -or [string]::IsNullOrWhiteSpace($relPath)) {
+            $bytes = Get-IndexPage
+            $ctx.Response.ContentType = 'text/html; charset=utf-8'
+            $ctx.Response.ContentLength64 = $bytes.Length
+            $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $ctx.Response.OutputStream.Close()
+            continue
+        }
+
+        # Folder path without trailing file: serve its index.html
+        if (Test-Path $filePath -PathType Container) {
+            $filePath = Join-Path $filePath 'index.html'
+        }
+
+        # Security: block path traversal (../) escaping the root folder
+        $fullRoot = (Resolve-Path $root).Path
         if (Test-Path $filePath -PathType Leaf) {
+            $fullFile = (Resolve-Path $filePath).Path
+            if (-not $fullFile.StartsWith($fullRoot)) {
+                $ctx.Response.StatusCode = 403
+                $msg = [System.Text.Encoding]::UTF8.GetBytes('403 Forbidden')
+                $ctx.Response.OutputStream.Write($msg, 0, $msg.Length)
+                $ctx.Response.OutputStream.Close()
+                continue
+            }
+
             $ext = [System.IO.Path]::GetExtension($filePath)
             if ($types.ContainsKey($ext)) {
                 $contentType = $types[$ext]
