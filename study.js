@@ -100,4 +100,29 @@ const labels = data.rooms.map( r => r. name );
     }
   });
 };
+
+let pieChart = null;
+
+const renderPieChart = (data) => { 
+  if (pieChart === null ) {
+    pieChart = echarts.init(document.querySelector('#pie-chart'));
+  } 
+  const byBuilding = {};
+  data.rooms.forEach( r => {
+    byBuilding[r.building] = (byBuilding[r. building ] || 0 ) + r.seats ;
+  });
+  pieChart. setOption ({ 
+    title:{ text:'各楼馆座位占比' , left:'center' }, 
+    tooltip:{ trigger:'item' ,formatter:'{b}:{c}座({d}%)'}, 
+    legend:{ bottom:0}, 
+    series:[{
+      type:'pie',
+      radius: '60%', 
+      data:Object.keys(byBuilding).map ( k => ({ 
+        name:k, 
+        value:byBuilding[k] }))
+    }]
+  });
+};
+
 loadData();
