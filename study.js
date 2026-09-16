@@ -125,4 +125,28 @@ const renderPieChart = (data) => {
   });
 };
 
+window.addEventListener('resize', () => {
+  if (barChart) barChart.resize();
+});
+
+$('#cards').on('click', '.card', function () {    
+  $(this).toggleClass('border-primary shadow');
+});
+
+$('#btn-all').on('click', () => {
+  $('#cards .card').show();
+});
+
+$('#btn-open').on('click', () => {
+  $('#cards .card').each(function () {
+    $(this).toggle($(this).find('.status-tag').text() === '开放');
+  });
+});
+
+$('#btn-free').on('click', () => {
+  state.data.rooms.forEach((r, i) => {
+    $('#cards .card').eq(i).toggle(r.seats - r.occupied > 0);
+  });
+});
+
 loadData();
