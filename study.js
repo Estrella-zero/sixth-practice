@@ -44,10 +44,30 @@ const renderCards = (data) => {
 
 
 let barChart = null;
+let byBuilding = {};
 
 const renderBarChart = (data) => {
   if (barChart === null) {
     barChart = echarts.init(document.querySelector('#bar-chart'));
+
+  barChart.on('click',function(params) { 
+  if(params.componentType!=='series')return;
+    var room = state.data.rooms.find(function ( r ) { 
+      return r.name === params.name; 
+  }); 
+  if (!room) return ; 
+  var idx = Object.keys(byBuilding). indexOf (room. building ); 
+  pieChart.dispatchAction({ 
+    type:'downplay', 
+    seriesIndex:0 
+  });  
+  pieChart.dispatchAction({
+    type:'highlight', 
+    seriesIndex:0, 
+    dataIndex:idx
+  });
+
+});
   }
   barChart.setOption({
     title: { text: '各自习室座位与在座人数', left: 'center' },
@@ -107,7 +127,7 @@ const renderPieChart = (data) => {
   if (pieChart === null ) {
     pieChart = echarts.init(document.querySelector('#pie-chart'));
   } 
-  const byBuilding = {};
+  byBuilding = {};
   data.rooms.forEach( r => {
     byBuilding[r.building] = (byBuilding[r. building ] || 0 ) + r.seats ;
   });
